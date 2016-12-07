@@ -1,6 +1,11 @@
+const Observable = require('rxjs/Observable').Observable;
+const animationFrame = require('rxjs/scheduler/animationFrame').animationFrame;
+
+const linear = n => n;
+
 function tween(duration = 500,
   easingFn = linear,
-  scheduler = Rx.Scheduler.animationFrame) {
+  scheduler = animationFrame) {
   return this.lift(new TweenOperator(duration, easingFn, scheduler));
 };
 
@@ -14,8 +19,8 @@ TweenOperator.prototype.call = function tweenCall(destination, source) {
   return source._subscribe({
     destination: destination,
     next: function (curr) {
-      const { prev, innerSub } = this;
-      this.start = Date.now();
+      const { prev, innerSub, scheduler } = this;
+      this.start = scheduler.now();
       this.prev = this.curr;
       this.curr = curr;
       if (innerSub) innerSub.unsubscribe();
@@ -35,9 +40,9 @@ TweenOperator.prototype.call = function tweenCall(destination, source) {
     start: undefined,
     _dispatchTween: function (state) {
       // `this` is the action
-      const { start, curr, easingFn, duration, destination } = state;
+      const { start, curr, easingFn, duration, destination, scheduler } = state;
       let { prev } = state;
-      const d = Date.now() - start;
+      const d = scheduler.now() - start;
       prev = prev || 0;
       if (d < duration) {
         destination.next(prev + ((curr - prev) * easingFn(d / duration)));
@@ -46,5 +51,10 @@ TweenOperator.prototype.call = function tweenCall(destination, source) {
     }
   });
 };
+
+module.exports = {
+  tween,
+  TweenOperator
+}
 
 Observable.prototype.tween = tween;
